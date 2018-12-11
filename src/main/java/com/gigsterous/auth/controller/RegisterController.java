@@ -7,6 +7,7 @@ import com.gigsterous.auth.service.AccountService;
 import java.util.Locale;
 import java.util.Optional;
 
+import javax.annotation.Resource;
 import javax.validation.Valid;
 
 import lombok.extern.slf4j.Slf4j;
@@ -23,149 +24,142 @@ import org.springframework.web.servlet.view.RedirectView;
  * <p>
  * RegistrationController class.
  * </p>
- * 
+ *
  * @author Martin Myslik
  */
 @Slf4j
 @Controller
 public class RegisterController {
 
-  private static final String CONFIRM = "confirm";
-  private static final String REGISTER = "register";
+    private static final String CONFIRM = "confirm";
+    private static final String REGISTER = "register";
 
-  private static final String SUCCESS_MESSAGE = "successMessage";
-  private static final String CONFIRMATION_MESSAGE = "confirmationMessage";
-  private static final String ERROR_MESSAGE = "errorMessage";
+    private static final String SUCCESS_MESSAGE = "successMessage";
+    private static final String CONFIRMATION_MESSAGE = "confirmationMessage";
+    private static final String ERROR_MESSAGE = "errorMessage";
 
-  private final AccountService accountService;
-  private final MessageSource messages;
+    @Resource
+    private AccountService accountService;
 
-  /**
-   * <p>
-   * Constructor for RegisterController.
-   * </p>
-   */
-  public RegisterController(AccountService accountService, MessageSource messages) {
-    this.accountService = accountService;
-    this.messages = messages;
-  }
+    @Resource
+    private MessageSource messages;
 
-  /**
-   * <p>
-   * Return ModelAndView for registration page.
-   * </p>
-   */
-  @RequestMapping(value = "/register", method = RequestMethod.GET)
-  public ModelAndView showRegistrationPage(ModelAndView modelAndView, User user) {
-    modelAndView.addObject("user", user);
-    modelAndView.setViewName(REGISTER);
+    /**
+     * <p>
+     * Return ModelAndView for registration page.
+     * </p>
+     */
+    @RequestMapping(value = "/register", method = RequestMethod.GET)
+    public ModelAndView showRegistrationPage(ModelAndView modelAndView, User user) {
+        modelAndView.addObject("user", user);
+        modelAndView.setViewName(REGISTER);
 
-    return modelAndView;
-  }
-
-  /**
-   * <p>
-   * Process input data from registration form and validate them.
-   * </p>
-   */
-  @RequestMapping(value = "/register", method = RequestMethod.POST)
-  public ModelAndView processRegistrationForm(ModelAndView modelAndView, @Valid User user, Locale locale) {
-    log.debug("User registration - POST");
-
-    modelAndView.setViewName(REGISTER);
-
-    if (accountService.isUserRegistered(user)) {
-      log.warn("This user already exists: {}", user);
-
-      modelAndView.addObject(ERROR_MESSAGE,
-          messages.getMessage("registration.emailExists", new Object[] { user.getEmail() }, locale));
-
-      return modelAndView;
+        return modelAndView;
     }
 
-    // new user so we create user and send confirmation e-mail
-    accountService.registerUser(user, locale);
+    /**
+     * <p>
+     * Process input data from registration form and validate them.
+     * </p>
+     */
+    @RequestMapping(value = "/register", method = RequestMethod.POST)
+    public ModelAndView processRegistrationForm(ModelAndView modelAndView, @Valid User user, Locale locale) {
+        log.debug("User registration - POST");
 
-    modelAndView.addObject(CONFIRMATION_MESSAGE,
-        messages.getMessage("registration.confirmationEmail", new Object[] { user.getEmail() }, locale));
+        modelAndView.setViewName(REGISTER);
 
-    return modelAndView;
-  }
+        if (accountService.isUserRegistered(user)) {
+            log.warn("This user already exists: {}", user);
 
-  /**
-   * <p>
-   * Return ModelAndView for confirmation page.
-   * </p>
-   */
-  @RequestMapping(value = "/confirm", method = RequestMethod.GET)
-  public ModelAndView showConfirmationPage(ModelAndView modelAndView, @RequestParam("token") String token,
-      @RequestParam(value = "mobile", required = false, defaultValue = "false") boolean mobile,
-      @RequestParam(value = "passwordError", required = false) boolean passwordError, Locale locale) {
+            modelAndView.addObject(ERROR_MESSAGE,
+                    messages.getMessage("registration.emailExists", new Object[]{user.getEmail()}, locale));
 
-    log.debug("Confirm endpoint - GET");
+            return modelAndView;
+        }
 
-    modelAndView.setViewName(CONFIRM);
+        // new user so we create user and send confirmation e-mail
+        accountService.registerUser(user, locale);
 
-    if (passwordError) {
-      log.debug("Passwords are not matching!");
+        modelAndView.addObject(CONFIRMATION_MESSAGE,
+                messages.getMessage("registration.confirmationEmail", new Object[]{user.getEmail()}, locale));
 
-      modelAndView.addObject(ERROR_MESSAGE, messages.getMessage("password.notMatching", null, locale));
+        return modelAndView;
     }
 
-    Optional<User> optionalUser = accountService.getUserForToken(token);
+    /**
+     * <p>
+     * Return ModelAndView for confirmation page.
+     * </p>
+     */
+    @RequestMapping(value = "/confirm", method = RequestMethod.GET)
+    public ModelAndView showConfirmationPage(ModelAndView modelAndView, @RequestParam("token") String token,
+                                             @RequestParam(value = "mobile", required = false, defaultValue = "false") boolean mobile,
+                                             @RequestParam(value = "passwordError", required = false) boolean passwordError, Locale locale) {
 
-    if (!optionalUser.isPresent()) { // No token found in DB
-      log.debug("No user found for this token: {}", token);
+        log.debug("Confirm endpoint - GET");
 
-      modelAndView.addObject("invalidToken", messages.getMessage("registration.invalidToken", null, locale));
-    } else { // Token found
-      modelAndView.addObject("confirmationToken", optionalUser.get().getConfirmationToken());
+        modelAndView.setViewName(CONFIRM);
+
+        if (passwordError) {
+            log.debug("Passwords are not matching!");
+
+            modelAndView.addObject(ERROR_MESSAGE, messages.getMessage("password.notMatching", null, locale));
+        }
+
+        Optional<User> optionalUser = accountService.getUserForToken(token);
+
+        if (!optionalUser.isPresent()) { // No token found in DB
+            log.debug("No user found for this token: {}", token);
+
+            modelAndView.addObject("invalidToken", messages.getMessage("registration.invalidToken", null, locale));
+        } else { // Token found
+            modelAndView.addObject("confirmationToken", optionalUser.get().getConfirmationToken());
+        }
+
+        // mobile param to model and view
+        modelAndView.addObject("mobile", mobile);
+
+        return modelAndView;
     }
 
-    // mobile param to model and view
-    modelAndView.addObject("mobile", mobile);
+    /**
+     * <p>
+     * Return Redirection to confirm page. This endpoint is used for mobile page
+     * </p>
+     */
+    @RequestMapping(value = "/confirmRedirect", method = RequestMethod.GET)
+    public String showRedirectConfirmationPage(@RequestParam("token") String token) {
 
-    return modelAndView;
-  }
-
-  /**
-   * <p>
-   * Return Redirection to confirm page. This endpoint is used for mobile page
-   * </p>
-   */
-  @RequestMapping(value = "/confirmRedirect", method = RequestMethod.GET)
-  public String showRedirectConfirmationPage(@RequestParam("token") String token) {
-
-    return "redirect:/confirm?token=" + token;
-  }
-
-  /**
-   * <p>
-   * Process input data from confirmation page.
-   * </p>
-   */
-  @RequestMapping(value = "/confirm", method = RequestMethod.POST)
-  public ModelAndView processConfirmationForm(ModelAndView modelAndView, @RequestParam("token") String token,
-      @RequestParam("password") String password, @RequestParam("confirmPassword") String confirmPassword,
-      Locale locale) {
-    log.debug("Confirm endpoint - POST");
-
-    modelAndView.setViewName(CONFIRM);
-
-    if (!password.equals(confirmPassword)) {
-      modelAndView.setView(new RedirectView(CONFIRM));
-      modelAndView.addObject("token", token);
-      modelAndView.addObject("passwordError", true);
-
-      return modelAndView;
+        return "redirect:/confirm?token=" + token;
     }
-    
-    modelAndView.addObject("loginLink", "/login");
 
-    accountService.confirmUser(token, password);
+    /**
+     * <p>
+     * Process input data from confirmation page.
+     * </p>
+     */
+    @RequestMapping(value = "/confirm", method = RequestMethod.POST)
+    public ModelAndView processConfirmationForm(ModelAndView modelAndView, @RequestParam("token") String token,
+                                                @RequestParam("password") String password, @RequestParam("confirmPassword") String confirmPassword,
+                                                Locale locale) {
+        log.debug("Confirm endpoint - POST");
 
-    modelAndView.addObject(SUCCESS_MESSAGE, messages.getMessage("registration.passwordSuccess", null, locale));
-    return modelAndView;
-  }
+        modelAndView.setViewName(CONFIRM);
+
+        if (!password.equals(confirmPassword)) {
+            modelAndView.setView(new RedirectView(CONFIRM));
+            modelAndView.addObject("token", token);
+            modelAndView.addObject("passwordError", true);
+
+            return modelAndView;
+        }
+
+        modelAndView.addObject("loginLink", "/login");
+
+        accountService.confirmUser(token, password);
+
+        modelAndView.addObject(SUCCESS_MESSAGE, messages.getMessage("registration.passwordSuccess", null, locale));
+        return modelAndView;
+    }
 
 }
