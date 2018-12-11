@@ -31,7 +31,7 @@ public class EmailServiceTest {
 
   @Test
   public void testGivenEmailServiceWhenSendingEmailThenVerifyEmailSentThroughMailSender() throws MessagingException {
-    emailService.prepareAndSend("john@example.com", "noreply@example.com", "test", "Hello!", "http://www.example.com");
+    emailService.prepareAndSend("845885222@qq.com", "gitlab@wallbase.tv", "test", "Hello!", "http://www.example.com");
 
     verify(mailSender).send(any(MimeMessagePreparator.class));
   }
