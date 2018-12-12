@@ -1,0 +1,76 @@
+# ----------------------------------------
+# CORE PROPERTIES
+# ----------------------------------------
+debug: false # Enable debug logs.
+trace: false # Enable trace logs.
+
+server:
+  port: 8182
+
+spring:
+  datasource:
+# PostgreSQL连接信息
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://127.0.0.1:5432/thymelte?useUnicode=true&amp;characterEncoding=UTF-8
+    username: ENC(hTpbG9fq+7P3SntmXuNtDxbtWDqRuPV+) #明文postgres
+    password: ENC(abdq6LyOspryFQHCqzEMTxRozyJVjIA4) #明文19961120
+# MySQL连接信息
+#    driver-class-name: com.mysql.jdbc.Driver
+#    url: jdbc:mysql://127.0.0.1:3306/test?useUnicode=true&characterEncoding=utf-8&useSSL=false
+#    username: ENC(YiYjVwTulDGN//YaB3KbuA==) #明文root
+#    password: ENC(9oaIJkFgGSDFaHH3OXY63RHWQ+amDmiJ) #明文19941017
+    type: com.alibaba.druid.pool.DruidDataSource
+    
+  banner:
+    charset: UTF-8
+    location: classpath:banner.txt
+
+logging:
+  level:
+    org:
+      springframework:
+        web: INFO
+    Hibernate: ERROR
+#eureka:
+#  client:
+#    service-url:
+#      defaultZone: http://127.0.0.1:8761/eureka/
+#  instance:
+#    prefer-ip-address: true
+
+jasypt:
+  encryptor:
+    password: 19941017
+    property:
+      prefix: "ENC("
+      suffix: ")"
+
+info:
+  app:
+    encoding: @project.build.sourceEncoding@
+    name: @project.name@
+    description: @project.description@
+    java:
+      source: @java.version@
+      target: @java.version@
+  build:
+    groupId: @project.groupId@
+    artifact: @project.artifactId@
+    name: @project.name@
+    version: @project.version@
+  git:
+    branch: ${git.branch}
+    commit:
+      id: ${git.commit.id}
+      time: ${git.commit.time}
+  env:
+    java:
+      vendor: ${java.specification.vendor}
+      vm-name: ${java.vm.name}
+      runtime-version: ${java.runtime.version}
+
+# 获取更全面的git信息
+management:
+  info:
+    git:
+      mode: full

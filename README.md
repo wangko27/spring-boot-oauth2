@@ -1,149 +1,200 @@
-# Authentication Service
+<p align="center">
+<a href="http://www.oracle.com/technetwork/java/javase/overview/index.html"><img src="https://img.shields.io/badge/language-java%208.0-orange.svg"></a>
+<a href="https://www.jetbrains.com/idea/"><img src="https://img.shields.io/badge/platform-jetbrains-green.svg"></a>
+<a href="http://projects.spring.io/spring-boot/"><img src="https://img.shields.io/badge/SpringBoot-2.0.3-990066.svg"></a>
+<img src="https://img.shields.io/badge/Database-MySQL%7CPostgreSQL-brightgreen.svg">
+<img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg">
+<img src="https://img.shields.io/badge/release-2.0.0.alpha-brightgreen.svg">
 
-This is an example authorization server written in Spring Boot 2. It is not meant to be used in production as it is but could be easily modified into a fully functional solution.
+</p>
 
-This auth server could be extended to provide other resources and act as an resource server or it can be used with an existing resource server and only provide  authentication/authorization by managing user OAuth2 tokens.
+# oauthserver
+## 简介
+oauthserver是一个基于Spring Boot Oauth2的完整的独立的Oauth2 Server微服务。仅仅需要创建相关数据表，修改数据库的连接信息，你就可以得到一个Oauth2 Server微服务。
 
-If you like this application and have questions or feature requests, feel free to open an issue/PR.
+支持的关系型数据库：
+- PostgreSQL
+- MySQL
 
-## 🌟 Features
+已实现的功能：
+1. 集成Spring Boot Oauth2，实现Oauth服务；
+2. token保存到关系型数据库；
+3. 获取token时，username允许传用户名、手机号或者邮箱；
+4. 日志记录保存到文件，并按日归档；
+5. 数据库连接信息加密；
+6. 集成Druid数据库连接池；
+7. 自定义Oauth2Exception异常返回的json信息。
 
-1. Username and password Authentication
-2. OAuth2 Access + Refresh Token Provision
-3. Registration with e-mail confirmation
-4. Basic account management including password change, forgotten password, e-mail change and account deletion
-5. Multilingual support
-6. Logout including token invalidation
-7. Easy SonarQube, Jacoco and Checkstyle intagration for code-quality monitoring
-8. Basic unit and integration test coverage with example tests
 
-## 🔧 Installation
+请下载与Spring Boot对应版本的oauthserver：
+<table border="1">
+  <tr>
+    <th>Spring Boot version</th>
+    <th>oauthserver version</th>
+  </tr>
+  <tr>
+    <td>1.x.x</td>
+    <td>1.x.x</td>
+  </tr>
+  <tr>
+    <td>2.x.x</td>
+    <td>2.x.x</td>
+   </tr> 
+</table>
 
-This is a [Gradle](https://gradle.org/) project and uses [lombok](https://projectlombok.org/), which needs to be configured in any IDE.
+## 更新日志
+### v2.0.0.alpha(2018-07-16)
+- 升级Spring Boot版本从1.5.14.RELEASE到2.0.3.RELEASE。
+### v1.1.1(2018-07-07)
+- 升级Spring Boot版本从1.5.13.RELEASE到1.5.14.RELEASE；
+- 修复检查的access_token无法识别时，返回中文message。
+### v1.1.0(2018-06-01)  
+- 自定义Oauth2Exception异常返回的json信息。
+### v1.0.3  
+- bug修复。
+### v1.0.1  
+- 获取token时，username允许传用户名、手机号或者邮箱。  
+### v1.0.0  
+- 完成基础Oauth服务。
 
-Furthermore, in order to use the e-mail features of this application, the smtp configuration needs to be injected either via `application.properties` or environmental variables. The following variables are required:
-
-- `spring.mail.host`
-- `spring.mail.username`
-- `spring.mail.password`
-
-## 🚦 Usage
-
-The application can be run using the included Gradle wrapper: `./gradlew bootRun`
-
-Similarly, building the application can be run using `./gradlew clean build`. This step includes also `checkstyle` step which reports all code quality violations and prints them into console and report files. Checkstyle rules can be edited in the configuration file `checkstyle/checkstyle.xml`.
-
-If you wish to use SonarQube for code quality checks and unit test coverage, run `./gradlew sonarqube -Dsonar.host.url=<sonar-url> -Dsonar.login=<sonar-password>`
-
-Spring REST docs are also implemented and basic documentation can be generated using `./gradlew asciidoc`.
-
-In case you have an existing resource server written in Spring Boot and wish to connect it to this authorization server, make sure you have the required Spring Boot security & OAuth2 dependencies and include the following line in your resource server's `application.properties`:
-
-`security.oauth2.resource.userInfoUri=http://localhost:9000/auth/user`
-
-### 🤝 Authentication
-
-To authenticate, call:
-
+## 使用流程
+### 1. 建表
+- PostgreSQL
+请执行`src/main/resources/schema-pg.sql`，完成数据表的创建和测试数据的导入。
+- MySQL
+请执行`src/main/resources/schema-mysql.sql`，完成数据表的创建和测试数据的导入。
+### 2. 修改数据库连接信息
+在application.yml中，配置着数据库的连接信息。其中，配置项username和password是要经过jasypt加密的，不能直接填明文。加密密钥由`jasypt.encryptor.password`配置。你需要使用test目录下的UtilTests工具得到加密字符串。
+- PostgreSQL
 ```
-curl --user 'gigy:secret' \
--d 'grant_type=password&username=john@example.com&password=password' \
--X POST http://localhost:9000/auth/oauth/token
+# PostgreSQL连接信息
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://127.0.0.1:5432/thymelte?useUnicode=true&amp;characterEncoding=UTF-8
+    username: ENC(hTpbG9fq+7P3SntmXuNtDxbtWDqRuPV+) #明文postgres
+    password: ENC(abdq6LyOspryFQHCqzEMTxRozyJVjIA4) #明文19961120
 ```
 
-A sample response will look like this:
-
+- MySQL
 ```
-{  
-   "access_token":"d6ce77cb-28e0-44d1-8d59-ce214822ef4b",
-   "token_type":"bearer",
-   "refresh_token":"98eb7a5f-5aee-4a96-b173-239401ea78d4",
-   "expires_in":3599,
-   "scope":"read write"
+# MySQL连接信息
+    driver-class-name: com.mysql.jdbc.Driver
+    url: jdbc:mysql://127.0.0.1:3306/test?useUnicode=true&characterEncoding=utf-8&useSSL=false
+    username: ENC(YiYjVwTulDGN//YaB3KbuA==) #明文root
+    password: ENC(9oaIJkFgGSDFaHH3OXY63RHWQ+amDmiJ) #明文19941017
+```
+### 3. 运行
+现在，一切已准备就绪。运行项目，当程序成功启动时，即表明你已配置成功。
+### 4. 测试
+在建表时，我已经向表添加了测试数据。以下请求参数的值，均是测试数据，在数据表中可以找得到。请根据需求到数据表中修改对应的值。    
+在表`oauth_client_details`表中，已有一条测试数据。列`client_id`和`client_secret`的值，分别对应Basic Oauth的请求参数`username`和`password`的值。而列`access_token_validity`和列`refresh_token_validity`，分别代表access_token和refresh_token的有效期时间，以秒为单位。测试数据7200和5184000，分别代表2个小时和2个月（60天）。这是一个比较合理的有效期时间的设置，可以参考。
+
+**token相关的接口，都需要进行Basic Oauth认证。**  
+如下图所示：  
+![截图](screenshots/2018-04-26_234934.png)
+> 1、根据用户名和密码获取access_token
+>> POST [http://localhost:8182/oauth/token?grant_type=password&username=jeesun&password=1234567890c](http://localhost:8182/oauth/token?grant_type=password&username=jeesun&password=1234567890c)
+
+**成功示例**  
+status=200，返回的json数据：
+``` json
+{
+    "access_token": "ca582cd1-be6c-4a5a-82ec-10af7a8e06eb",
+    "token_type": "bearer",
+    "refresh_token": "c24a6143-97c8-4642-88b9-d5c5b902b487",
+    "expires_in": 3824,
+    "scope": "read write trust"
+}
+```
+**失败示例**  
+1. 用户名错误  
+status=400，返回的json数据：
+``` json
+{
+    "code": 400,
+    "message": "用户名不存在",
+    "data": null
+}
+```
+2. 密码错误  
+status=400，返回的json数据：
+``` json
+{
+    "code": 400,
+    "message": "密码错误",
+    "data": null
+}
+```
+3. 账号被封enabled=false  
+status=400，返回的json数据：
+``` json
+{
+    "code": 400,
+    "message": "您已被封号",
+    "data": null
 }
 ```
 
-### ♻️ Refresh Token
+> 2、检查access_token
+>> GET [http://localhost:8182/oauth/check_token?token=ca582cd1-be6c-4a5a-82ec-10af7a8e06eb](http://localhost:8182/oauth/check_token?token=ca582cd1-be6c-4a5a-82ec-10af7a8e06eb)
 
-Access Token has a limited validity. Once expired, the Refresh Token can be used in order to obtain a new one without using user's credentials. 
-
-To refresh the Access Token, simply call:
-
+**成功示例**  
+即使用户被封enabled=false，access_token未过期仍然可用。  
+status=200，返回的json数据：
+``` json
+{
+    "aud": [
+        "oauth2-resource"
+    ],
+    "exp": 1524507296,
+    "user_name": "jeesun",
+    "authorities": [
+        "ROLE_ADMIN",
+        "ROLE_USER"
+    ],
+    "client_id": "clientIdPassword",
+    "scope": [
+        "read",
+        "write",
+        "trust"
+    ]
+}
 ```
-curl -i --user 'gigy:secret' \
--d "grant_type=refresh_token&client_id=gigy&client_secret=secret&refresh_token=98eb7a5f-5aee-4a96-b173-239401ea78d4" \
--X POST http://localhost:9000/auth/oauth/token
-```
-
-Which will return a new Access Token:
-
-```
-{  
-   "access_token":"b14d9a0c-450d-4fd9-bd46-d5a70422e4c7",
-   "token_type":"bearer",
-   "refresh_token":"98eb7a5f-5aee-4a96-b173-239401ea78d4",
-   "expires_in":3599,
-   "scope":"read write"
+**失败示例**  
+access_token已过期  
+status=400，返回的json数据：
+``` json
+{
+    "code": 400,
+    "message": "Token无法识别",
+    "data": null
 }
 ```
 
-> Notice that the Refresh Token remains the same even after receiving a new Access Token.
+> 3、根据refresh_token获取新的access_token
+>> POST [http://localhost:8182/oauth/token?grant_type=refresh_token&refresh_token=c24a6143-97c8-4642-88b9-d5c5b902b487](http://localhost:8182/oauth/token?grant_type=refresh_token&refresh_token=c24a6143-97c8-4642-88b9-d5c5b902b487)
 
-### 👤 User Data
-
-To verify that the Access Token works well, we can call the **/user** endpoint method:
-
-```
-curl -i -H "Accept: application/json" \
--H "Authorization: Bearer b14d9a0c-450d-4fd9-bd46-d5a70422e4c7" \
--X GET http://localhost:9000/auth/user
-```
-
-Which returns:
-
-```
-{  
-   "id":1,
-   "username":"john@example.com",
-   "password":"$2a$10$D4OLKI6yy68crm.3imC9X.P2xqKHs5TloWUcr6z5XdOqnTrAK84ri",
-   "enabled":true,
-   "authorities":[],
-   "accountNonExpired":true,
-   "accountNonLocked":true,
-   "credentialsNonExpired":true
+**成功示例**  
+status=200，返回的json数据：
+``` json
+{
+    "access_token": "690ecd7d-f2b7-4faa-ac45-5b7a319478e8",
+    "token_type": "bearer",
+    "refresh_token": "c24a6143-97c8-4642-88b9-d5c5b902b487",
+    "expires_in": 7199,
+    "scope": "read write trust"
 }
 ```
 
-This method is exposed to all secured services within the whole system. The way it works and returns data is according to Spring Boot standards.
-
-## ⚠️ Error Handling
-
-### 📛 Expired Access Token
-
-When Access Token expires, server will return an error, such as:
-
-```
-{  
-   "error":"invalid_token",
-   "error_description":"Invalid access token: b14d9a0c-450d-4fd9-bd46-d5a70422e4c7"
+**失败示例**  
+用户被封enabled=false  
+status=401，返回的json数据：
+``` json
+{
+    "code": 401,
+    "message": "用户已失效",
+    "data": null
 }
 ```
-
-This error signals that token is invalid. We can assume that the token has expired and can attempt to get a new one using the Refresh Token.
-
-### ⛔️ Invalid Refresh Token
-
-There are numerous reasons for Refresh Token to be invalidated. When that happens, server will return:
-
-```
-{  
-   "error":"invalid_grant",
-   "error_description":"Invalid refresh token: 98eb7a5f-5aee-4a96-b173-239401ea78d5"
-}
-```
-
-When this error occurs, user credentials have to be used in order to authenticate the user again.
-
-## 🔖 License
-
-The code is released under the Apache 2.0 license. See [LICENSE](https://github.com/gigsterous/auth-server/blob/master/LICENSE) for details.
+## app实践指南
+app获取到token信息后，需要保存token信息和请求时间。在传access_token之前，需要检查access_token是否过期。为了减少后台压力，检查access_token是否过期应该是在app本地完成。通过token的key`expires_in`（剩余有效期）的值，以及本地记录的请求时间，和当前时间做对比，可以很方便地判断出access_token是否过期。如果过期了，需要通过refresh_token获取新的access_token。因为access_token的有效期只有2个小时，这个验证是必须的。    
+refresh_token同理。

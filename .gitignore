@@ -25,6 +25,7 @@ nbbuild/
 dist/
 nbdist/
 .nb-gradle/
+target/
 
 ### Mac OS ###
 .DS_Store
