@@ -19,215 +19,216 @@ import org.springframework.stereotype.Service;
  * <p>
  * AccountServiceImpl class.
  * </p>
- * 
+ *
  * @author Martin Myslik
  */
 @Slf4j
 @Service
 public class AccountServiceImpl implements AccountService {
 
-  private final UserRepository userRepository;
-  private final EmailService emailService;
-  private final BCryptPasswordEncoder passwordEncoder;
-  private final AuthProperties properties;
-  private final MessageSource messages;
+    private final UserRepository userRepository;
+    private final EmailService emailService;
+    private final BCryptPasswordEncoder passwordEncoder;
+    private final AuthProperties properties;
+    private final MessageSource messages;
 
-  /**
-   * <p>
-   * AccountServiceImpl constructor.
-   * </p>
-   */
-  public AccountServiceImpl(UserRepository userRepository, EmailService emailService,
-      BCryptPasswordEncoder passwordEncoder, AuthProperties properties, MessageSource messages) {
-    this.userRepository = userRepository;
-    this.emailService = emailService;
-    this.passwordEncoder = passwordEncoder;
-    this.properties = properties;
-    this.messages = messages;
-  }
-
-  @Override
-  public void registerUser(User user, Locale locale) {
-    log.debug("Registering new user...");
-
-    // check if user exists in non-enabled state
-    Optional<User> loaded = userRepository.findOneByEmail(user.getUsername());
-    if (loaded.isPresent()) {
-      // if yes, use existing user instead
-      user = loaded.get();
+    /**
+     * <p>
+     * AccountServiceImpl constructor.
+     * </p>
+     */
+    public AccountServiceImpl(UserRepository userRepository, EmailService emailService,
+                              BCryptPasswordEncoder passwordEncoder, AuthProperties properties, MessageSource messages) {
+        this.userRepository = userRepository;
+        this.emailService = emailService;
+        this.passwordEncoder = passwordEncoder;
+        this.properties = properties;
+        this.messages = messages;
     }
 
-    // Disable user until they click on confirmation link in email
-    user.setEnabled(false);
+    @Override
+    public void registerUser(User user, Locale locale) {
+        log.debug("Registering new user...");
 
-    // Generate random 36-character string token for confirmation link
-    user.setConfirmationToken(UUID.randomUUID().toString());
+        // check if user exists in non-enabled state
+        Optional<User> loaded = userRepository.findOneByEmail(user.getUsername());
+        if (loaded.isPresent()) {
+            // if yes, use existing user instead
+            user = loaded.get();
+        }
 
-    userRepository.save(user);
+        // Disable user until they click on confirmation link in email
+        user.setEnabled(false);
 
-    // send email
-    log.debug("Sending confirmation token to the selected email: {}", user.getEmail());
+        // Generate random 36-character string token for confirmation link
+        user.setConfirmationToken(UUID.randomUUID().toString());
 
-    String message = messages.getMessage("email.registration", null, locale);
-    String link = properties.getRedirectionUrl() + "/confirmRedirect?token=" + user.getConfirmationToken();
+        userRepository.save(user);
 
-    emailService.prepareAndSend(user.getEmail(), properties.getEmailFrom(), "Registration confirmation", message, link);
+        // send email
+        log.debug("Sending confirmation token to the selected email: {}", user.getEmail());
 
-  }
+        String message = messages.getMessage("email.registration", null, locale);
+        String link = properties.getRedirectionUrl() + "/confirmRedirect?token=" + user.getConfirmationToken();
 
-  @Override
-  public void confirmUser(String token, String password) {
-    log.debug("Confirming user with token {}", token);
+        log.info("link is {}", link);
+        // emailService.prepareAndSend(user.getEmail(), properties.getEmailFrom(), "Registration confirmation", message, link);
 
-    // Find the user associated with the reset token
-    Optional<User> optionalUser = userRepository.findByConfirmationToken(token);
-
-    if (!optionalUser.isPresent()) {
-      throw new UsernameNotFoundException("NO user found for token!");
     }
 
-    User user = optionalUser.get();
+    @Override
+    public void confirmUser(String token, String password) {
+        log.debug("Confirming user with token {}", token);
 
-    // Set new password
-    user.setPassword(passwordEncoder.encode((CharSequence) password));
+        // Find the user associated with the reset token
+        Optional<User> optionalUser = userRepository.findByConfirmationToken(token);
 
-    // Set user to enabled
-    user.setEnabled(true);
-    user.setConfirmationToken("");
+        if (!optionalUser.isPresent()) {
+            throw new UsernameNotFoundException("NO user found for token!");
+        }
 
-    // Save user
-    userRepository.save(user);
-  }
+        User user = optionalUser.get();
 
-  @Override
-  public boolean isUserRegistered(User user) {
-    Optional<User> loaded = userRepository.findOneByEmail(user.getUsername());
-    if (loaded.isPresent()) {
-      return loaded.get().isEnabled();
+        // Set new password
+        user.setPassword(passwordEncoder.encode((CharSequence) password));
+
+        // Set user to enabled
+        user.setEnabled(true);
+        user.setConfirmationToken("");
+
+        // Save user
+        userRepository.save(user);
     }
 
-    return false;
-  }
+    @Override
+    public boolean isUserRegistered(User user) {
+        Optional<User> loaded = userRepository.findOneByEmail(user.getUsername());
+        if (loaded.isPresent()) {
+            return loaded.get().isEnabled();
+        }
 
-  @Override
-  public Optional<User> getUserForToken(String token) {
-    return userRepository.findByConfirmationToken(token);
-  }
-
-  @Override
-  public void resetPassword(User user, Locale locale) {
-    log.debug("Resetting password for user: {}", user.getEmail());
-
-    Optional<User> optionalUser = userRepository.findOneByEmail(user.getEmail());
-    if (!optionalUser.isPresent()) {
-      log.error("Cannot find user with this e-mail!");
-
-      return;
+        return false;
     }
 
-    // invalidate current password
-    user = optionalUser.get();
-
-    // Generate random 36-character string token for confirmation link
-    user.setConfirmationToken(UUID.randomUUID().toString());
-
-    // send email with confirmation token
-    log.debug("Sending confirmation token to the selected email: {}", user.getEmail());
-
-    String message = messages.getMessage("email.resetPassword", null, locale);
-    String link = properties.getRedirectionUrl() + "/confirmRedirect?token=" + user.getConfirmationToken();
-
-    emailService.prepareAndSend(user.getEmail(), properties.getEmailFrom(), "Password reset", message, link);
-
-    // update user entity
-    userRepository.save(user);
-
-  }
-
-  @Override
-  public boolean changePassword(String email, String oldPassword, String newPassword) {
-    log.debug("Changing password for user: {}", email);
-
-    Optional<User> optionalUser = userRepository.findOneByEmail(email);
-    if (!optionalUser.isPresent()) {
-      log.error("Cannot find user with this e-mail!");
-
-      return false;
+    @Override
+    public Optional<User> getUserForToken(String token) {
+        return userRepository.findByConfirmationToken(token);
     }
 
-    User user = optionalUser.get();
+    @Override
+    public void resetPassword(User user, Locale locale) {
+        log.debug("Resetting password for user: {}", user.getEmail());
 
-    boolean passwordMatch = passwordEncoder.matches(oldPassword, user.getPassword());
+        Optional<User> optionalUser = userRepository.findOneByEmail(user.getEmail());
+        if (!optionalUser.isPresent()) {
+            log.error("Cannot find user with this e-mail!");
 
-    log.debug("Current password matches: {}", passwordMatch);
-    if (passwordMatch) {
-      user.setPassword(passwordEncoder.encode(newPassword));
+            return;
+        }
 
-      userRepository.save(user);
+        // invalidate current password
+        user = optionalUser.get();
 
-      return true;
+        // Generate random 36-character string token for confirmation link
+        user.setConfirmationToken(UUID.randomUUID().toString());
+
+        // send email with confirmation token
+        log.debug("Sending confirmation token to the selected email: {}", user.getEmail());
+
+        String message = messages.getMessage("email.resetPassword", null, locale);
+        String link = properties.getRedirectionUrl() + "/confirmRedirect?token=" + user.getConfirmationToken();
+
+        emailService.prepareAndSend(user.getEmail(), properties.getEmailFrom(), "Password reset", message, link);
+
+        // update user entity
+        userRepository.save(user);
+
     }
 
-    // old password does not match
-    return false;
-  }
+    @Override
+    public boolean changePassword(String email, String oldPassword, String newPassword) {
+        log.debug("Changing password for user: {}", email);
 
-  @Override
-  public boolean changeEmail(String email, String password, String newEmail, Locale locale) {
-    log.debug("Changing e-mail for user: {}", email);
+        Optional<User> optionalUser = userRepository.findOneByEmail(email);
+        if (!optionalUser.isPresent()) {
+            log.error("Cannot find user with this e-mail!");
 
-    Optional<User> optionalUser = userRepository.findOneByEmail(email);
-    if (!optionalUser.isPresent()) {
-      log.error("Cannot find user with this e-mail!");
+            return false;
+        }
 
-      return false;
+        User user = optionalUser.get();
+
+        boolean passwordMatch = passwordEncoder.matches(oldPassword, user.getPassword());
+
+        log.debug("Current password matches: {}", passwordMatch);
+        if (passwordMatch) {
+            user.setPassword(passwordEncoder.encode(newPassword));
+
+            userRepository.save(user);
+
+            return true;
+        }
+
+        // old password does not match
+        return false;
     }
 
-    User user = optionalUser.get();
+    @Override
+    public boolean changeEmail(String email, String password, String newEmail, Locale locale) {
+        log.debug("Changing e-mail for user: {}", email);
 
-    if (userRepository.findOneByEmail(newEmail).isPresent()) {
-      log.warn("User with email {} already exists.", newEmail);
+        Optional<User> optionalUser = userRepository.findOneByEmail(email);
+        if (!optionalUser.isPresent()) {
+            log.error("Cannot find user with this e-mail!");
 
-      return false;
+            return false;
+        }
+
+        User user = optionalUser.get();
+
+        if (userRepository.findOneByEmail(newEmail).isPresent()) {
+            log.warn("User with email {} already exists.", newEmail);
+
+            return false;
+        }
+
+        boolean passwordMatch = passwordEncoder.matches(password, user.getPassword());
+
+        log.debug("Current password matches: {}", passwordMatch);
+        if (passwordMatch) {
+            user.setPendingEmail(newEmail);
+
+            // Generate random 36-character string token for confirmation link
+            user.setConfirmationToken(UUID.randomUUID().toString());
+
+            // send email with confirmation token
+            log.debug("Sending verification token {} to the selected email: {}", user.getConfirmationToken(), newEmail);
+
+            String message = messages.getMessage("email.verification", null, locale);
+            String link = properties.getRedirectionUrl() + "/verifyEmail?token=" + user.getConfirmationToken();
+
+            emailService.prepareAndSend(newEmail, properties.getEmailFrom(), "E-mail change", message, link);
+
+            userRepository.save(user);
+
+            return true;
+        }
+
+        // password does not match
+        return false;
     }
 
-    boolean passwordMatch = passwordEncoder.matches(password, user.getPassword());
+    @Override
+    public void verifyEmail(User user) {
+        log.debug("Verifying e-mail {}", user.getPendingEmail());
 
-    log.debug("Current password matches: {}", passwordMatch);
-    if (passwordMatch) {
-      user.setPendingEmail(newEmail);
+        // Set new e-mail
+        user.setEmail(user.getPendingEmail());
+        user.setPendingEmail(null);
+        user.setConfirmationToken("");
 
-      // Generate random 36-character string token for confirmation link
-      user.setConfirmationToken(UUID.randomUUID().toString());
-
-      // send email with confirmation token
-      log.debug("Sending verification token {} to the selected email: {}", user.getConfirmationToken(), newEmail);
-
-      String message = messages.getMessage("email.verification", null, locale);
-      String link = properties.getRedirectionUrl() + "/verifyEmail?token=" + user.getConfirmationToken();
-
-      emailService.prepareAndSend(newEmail, properties.getEmailFrom(), "E-mail change", message, link);
-
-      userRepository.save(user);
-
-      return true;
+        // Save user
+        userRepository.save(user);
     }
-
-    // password does not match
-    return false;
-  }
-
-  @Override
-  public void verifyEmail(User user) {
-    log.debug("Verifying e-mail {}", user.getPendingEmail());
-
-    // Set new e-mail
-    user.setEmail(user.getPendingEmail());
-    user.setPendingEmail(null);
-    user.setConfirmationToken("");
-
-    // Save user
-    userRepository.save(user);
-  }
 
 }
